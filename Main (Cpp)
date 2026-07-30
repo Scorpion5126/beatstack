@@ -1,0 +1,300 @@
+// BeatStack (C++ console edition)
+// A music-player demo showing core DSA concepts:
+//   - Array (std::vector)      -> the song library / playlist
+//   - Queue (std::deque)       -> upcoming songs to play (FIFO)
+//   - Stack (std::vector used as a stack) -> listening history (LIFO)
+//   - Search, Sort, Shuffle    -> classic array algorithms
+//
+// Compile:  g++ -std=c++17 -O2 -o beatstack main.cpp
+// Run:      ./beatstack
+
+#include <iostream>
+#include <vector>
+#include <deque>
+#include <string>
+#include <algorithm>
+#include <random>
+#include <optional>
+#include <iomanip>
+#include <sstream>
+#include <cctype>
+
+struct Song {
+    int id;
+    std::string title;
+    std::string artist;
+    int duration;   // seconds
+    std::string mood;
+};
+
+// ---------- Global "database" (Array) ----------
+static const std::vector<Song> SONG_LIBRARY = {
+    {1, "Midnight Codes", "Array Avenue",  214, "Focus"},
+    {2, "Queue Lights",   "FIFO Dreams",   188, "Chill"},
+    {3, "Binary Heart",   "Search Party",  241, "Energy"},
+    {4, "Stack Replay",   "Last In",       205, "Focus"},
+    {5, "Sorted Skies",   "Merge Lane",    232, "Happy"},
+    {6, "Hash Map Home",  "Key Value",     197, "Chill"},
+    {7, "Graph Walk",     "Node Theory",   266, "Energy"},
+    {8, "Loop Again",     "Iteration",     179, "Happy"}
+};
+
+// ---------- Application state ----------
+std::vector<Song> visibleSongs(SONG_LIBRARY.begin(), SONG_LIBRARY.end()); // Array
+std::deque<Song> playQueue(SONG_LIBRARY.begin(), SONG_LIBRARY.end());     // Queue (FIFO)
+std::vector<Song> historyStack;                                          // Stack (LIFO)
+std::optional<Song> currentSong;
+bool isPlaying = false;
+
+// ---------- Helpers ----------
+std::string formatDuration(int seconds) {
+    int m = seconds / 60;
+    int s = seconds % 60;
+    std::ostringstream oss;
+    oss << m << ":" << std::setw(2) << std::setfill('0') << s;
+    return oss.str();
+}
+
+std::string toLower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    return s;
+}
+
+std::optional<Song> findSongById(int id) {
+    for (const auto& s : SONG_LIBRARY) {
+        if (s.id == id) return s;
+    }
+    return std::nullopt;
+}
+
+// ---------- Rendering ----------
+void printPlaylist() {
+    std::cout << "\n--- Playlist (" << visibleSongs.size() << " songs) ---\n";
+    if (visibleSongs.empty()) {
+        std::cout << "No songs found.\n";
+        return;
+    }
+    for (size_t i = 0; i < visibleSongs.size(); ++i) {
+        const auto& s = visibleSongs[i];
+        bool active = currentSong && currentSong->id == s.id;
+        std::cout << (active ? " > " : "   ")
+                   << std::setw(2) << (i + 1) << ". "
+                   << std::left << std::setw(16) << s.title
+                   << std::setw(16) << s.artist
+                   << std::setw(8) << s.mood
+                   << formatDuration(s.duration) << "\n";
+    }
+}
+
+void printQueue() {
+    std::cout << "\n--- Queue (FIFO, " << playQueue.size() << ") ---\n";
+    if (playQueue.empty()) {
+        std::cout << "Queue is empty.\n";
+        return;
+    }
+    for (const auto& s : playQueue) {
+        std::cout << "  " << s.title << " - " << s.artist << "\n";
+    }
+}
+
+void printHistory() {
+    std::cout << "\n--- History (Stack, " << historyStack.size() << ") ---\n";
+    if (historyStack.empty()) {
+        std::cout << "No songs played yet.\n";
+        return;
+    }
+    for (auto it = historyStack.rbegin(); it != historyStack.rend(); ++it) {
+        std::cout << "  " << it->title << "\n";
+    }
+}
+
+void printNowPlaying() {
+    std::cout << "\n--- Now Playing ---\n";
+    if (!currentSong) {
+        std::cout << "Nothing is playing yet.\n";
+        return;
+    }
+    std::cout << currentSong->title << " - " << currentSong->artist
+               << " (" << currentSong->mood << ") ["
+               << (isPlaying ? "Playing" : "Paused") << "]\n";
+}
+
+void renderAll() {
+    printNowPlaying();
+    printPlaylist();
+    printQueue();
+    printHistory();
+}
+
+// ---------- Core actions ----------
+void playSong(int id) {
+    auto found = findSongById(id);
+    if (!found) {
+        std::cout << "No song with id " << id << "\n";
+        return;
+    }
+    if (currentSong) {
+        historyStack.push_back(*currentSong); // push onto stack
+    }
+    currentSong = found;
+    isPlaying = true;
+
+    // remove from queue if present
+    playQueue.erase(std::remove_if(playQueue.begin(), playQueue.end(),
+                    [&](const Song& s) { return s.id == id; }), playQueue.end());
+}
+
+void addToQueue(int id) {
+    auto found = findSongById(id);
+    if (!found) {
+        std::cout << "No song with id " << id << "\n";
+        return;
+    }
+    bool alreadyQueued = std::any_of(playQueue.begin(), playQueue.end(),
+                         [&](const Song& s) { return s.id == id; });
+    if (!alreadyQueued) {
+        playQueue.push_back(*found); // enqueue
+        std::cout << "Added \"" << found->title << "\" to the queue.\n";
+    } else {
+        std::cout << "Already in queue.\n";
+    }
+}
+
+void playNextSong() {
+    if (playQueue.empty()) {
+        std::cout << "Queue is empty, nothing to play next.\n";
+        return;
+    }
+    if (currentSong) {
+        historyStack.push_back(*currentSong);
+    }
+    currentSong = playQueue.front();
+    playQueue.pop_front(); // dequeue
+    isPlaying = true;
+}
+
+void playPreviousSong() {
+    if (historyStack.empty()) {
+        std::cout << "History is empty, nothing to go back to.\n";
+        return;
+    }
+    if (currentSong) {
+        playQueue.push_front(*currentSong);
+    }
+    currentSong = historyStack.back();
+    historyStack.pop_back(); // pop from stack
+    isPlaying = true;
+}
+
+void togglePlayPause() {
+    if (!currentSong) {
+        playNextSong();
+        return;
+    }
+    isPlaying = !isPlaying;
+}
+
+void searchSongs(const std::string& term) {
+    std::string needle = toLower(term);
+    visibleSongs.clear();
+    for (const auto& s : SONG_LIBRARY) {
+        if (toLower(s.title).find(needle) != std::string::npos ||
+            toLower(s.artist).find(needle) != std::string::npos ||
+            toLower(s.mood).find(needle) != std::string::npos) {
+            visibleSongs.push_back(s);
+        }
+    }
+}
+
+void resetVisible() {
+    visibleSongs.assign(SONG_LIBRARY.begin(), SONG_LIBRARY.end());
+}
+
+void sortSongs(const std::string& mode) {
+    if (mode == "title") {
+        std::sort(visibleSongs.begin(), visibleSongs.end(),
+                  [](const Song& a, const Song& b) { return a.title < b.title; });
+    } else if (mode == "artist") {
+        std::sort(visibleSongs.begin(), visibleSongs.end(),
+                  [](const Song& a, const Song& b) { return a.artist < b.artist; });
+    } else if (mode == "duration") {
+        std::sort(visibleSongs.begin(), visibleSongs.end(),
+                  [](const Song& a, const Song& b) { return a.duration < b.duration; });
+    }
+    // "default" -> caller resets the array beforehand
+}
+
+void shufflePlaylist() {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::shuffle(visibleSongs.begin(), visibleSongs.end(), gen);
+}
+
+// ---------- Menu ----------
+void printMenu() {
+    std::cout << "\n=================== BeatStack ===================\n"
+                 " 1. Show dashboard        5. Play next (dequeue)\n"
+                 " 2. Play a song by id     6. Play previous (pop history)\n"
+                 " 3. Add song to queue     7. Toggle play/pause\n"
+                 " 4. Search songs          8. Sort playlist\n"
+                 " 9. Shuffle playlist      0. Exit\n"
+                 "==================================================\n";
+}
+
+int main() {
+    std::cout << "Welcome to BeatStack (C++ console edition)\n";
+    renderAll();
+
+    while (true) {
+        printMenu();
+        std::cout << "Choose an option: ";
+        std::string line;
+        if (!std::getline(std::cin, line)) break;
+
+        if (line == "1") {
+            renderAll();
+        } else if (line == "2") {
+            std::cout << "Enter song id: ";
+            std::getline(std::cin, line);
+            try { playSong(std::stoi(line)); renderAll(); }
+            catch (...) { std::cout << "Invalid id.\n"; }
+        } else if (line == "3") {
+            std::cout << "Enter song id: ";
+            std::getline(std::cin, line);
+            try { addToQueue(std::stoi(line)); printQueue(); }
+            catch (...) { std::cout << "Invalid id.\n"; }
+        } else if (line == "4") {
+            std::cout << "Search term: ";
+            std::string term;
+            std::getline(std::cin, term);
+            searchSongs(term);
+            printPlaylist();
+        } else if (line == "5") {
+            playNextSong();
+            renderAll();
+        } else if (line == "6") {
+            playPreviousSong();
+            renderAll();
+        } else if (line == "7") {
+            togglePlayPause();
+            printNowPlaying();
+        } else if (line == "8") {
+            std::cout << "Sort by (title/artist/duration/default): ";
+            std::string mode;
+            std::getline(std::cin, mode);
+            if (mode == "default") resetVisible();
+            sortSongs(mode);
+            printPlaylist();
+        } else if (line == "9") {
+            shufflePlaylist();
+            printPlaylist();
+        } else if (line == "0") {
+            std::cout << "Goodbye!\n";
+            break;
+        } else {
+            std::cout << "Unknown option.\n";
+        }
+    }
+
+    return 0;
+}
