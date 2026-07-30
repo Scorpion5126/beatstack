@@ -1,0 +1,208 @@
+const songs = [
+  { id: 1, title: "Midnight Codes", artist: "Array Avenue", duration: 214, mood: "Focus" },
+  { id: 2, title: "Queue Lights", artist: "FIFO Dreams", duration: 188, mood: "Chill" },
+  { id: 3, title: "Binary Heart", artist: "Search Party", duration: 241, mood: "Energy" },
+  { id: 4, title: "Stack Replay", artist: "Last In", duration: 205, mood: "Focus" },
+  { id: 5, title: "Sorted Skies", artist: "Merge Lane", duration: 232, mood: "Happy" },
+  { id: 6, title: "Hash Map Home", artist: "Key Value", duration: 197, mood: "Chill" },
+  { id: 7, title: "Graph Walk", artist: "Node Theory", duration: 266, mood: "Energy" },
+  { id: 8, title: "Loop Again", artist: "Iteration", duration: 179, mood: "Happy" }
+];
+
+let visibleSongs = [...songs];
+let playQueue = [...songs];
+let historyStack = [];
+let currentSong = null;
+let isPlaying = false;
+
+const songList = document.getElementById("songList");
+const queueList = document.getElementById("queueList");
+const historyList = document.getElementById("historyList");
+const searchInput = document.getElementById("searchInput");
+const sortSelect = document.getElementById("sortSelect");
+
+function formatDuration(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = String(seconds % 60).padStart(2, "0");
+  return `${minutes}:${remainingSeconds}`;
+}
+
+function renderSongs() {
+  document.getElementById("songCount").textContent = `${visibleSongs.length} songs`;
+
+  if (visibleSongs.length === 0) {
+    songList.innerHTML = `<div class="empty-state">No songs found.</div>`;
+    return;
+  }
+
+  songList.innerHTML = visibleSongs.map((song, index) => `
+    <article class="song-card ${currentSong?.id === song.id ? "active" : ""}">
+      <div class="song-index">${index + 1}</div>
+      <div>
+        <div class="song-title">${song.title}</div>
+        <div class="song-meta">
+          <span>${song.artist}</span>
+          <span>${song.mood}</span>
+          <span>${formatDuration(song.duration)}</span>
+        </div>
+      </div>
+      <button onclick="playSong(${song.id})">Play</button>
+      <button onclick="addToQueue(${song.id})">Queue</button>
+    </article>
+  `).join("");
+}
+
+function renderQueue() {
+  queueList.innerHTML = playQueue.length
+    ? playQueue.map((song) => `<li>${song.title} - ${song.artist}</li>`).join("")
+    : `<li>Queue is empty</li>`;
+}
+
+function renderHistory() {
+  historyList.innerHTML = historyStack.length
+    ? [...historyStack].reverse().map((song) => `<li>${song.title}</li>`).join("")
+    : `<li>No songs played yet</li>`;
+}
+
+function renderNowPlaying() {
+  const title = document.getElementById("currentTitle");
+  const artist = document.getElementById("currentArtist");
+  const cover = document.getElementById("coverArt");
+  const playPause = document.getElementById("playPauseBtn");
+
+  if (!currentSong) {
+    title.textContent = "Select a song";
+    artist.textContent = "Nothing is playing yet";
+    cover.textContent = "BS";
+    playPause.textContent = "Play";
+    return;
+  }
+
+  title.textContent = currentSong.title;
+  artist.textContent = `${currentSong.artist} - ${currentSong.mood}`;
+  cover.textContent = currentSong.title.split(" ").map((word) => word[0]).join("").slice(0, 2);
+  playPause.textContent = isPlaying ? "Pause" : "Play";
+}
+
+function renderAll() {
+  renderSongs();
+  renderQueue();
+  renderHistory();
+  renderNowPlaying();
+}
+
+function playSong(songId) {
+  const selectedSong = songs.find((song) => song.id === songId);
+  if (!selectedSong) return;
+
+  if (currentSong) {
+    historyStack.push(currentSong);
+  }
+
+  currentSong = selectedSong;
+  isPlaying = true;
+  playQueue = playQueue.filter((song) => song.id !== songId);
+  renderAll();
+}
+
+function addToQueue(songId) {
+  const selectedSong = songs.find((song) => song.id === songId);
+  const alreadyQueued = playQueue.some((song) => song.id === songId);
+
+  if (selectedSong && !alreadyQueued) {
+    playQueue.push(selectedSong);
+  }
+
+  renderQueue();
+}
+
+function playNextSong() {
+  if (playQueue.length === 0) return;
+
+  if (currentSong) {
+    historyStack.push(currentSong);
+  }
+
+  currentSong = playQueue.shift();
+  isPlaying = true;
+  renderAll();
+}
+
+function playPreviousSong() {
+  if (historyStack.length === 0) return;
+
+  if (currentSong) {
+    playQueue.unshift(currentSong);
+  }
+
+  currentSong = historyStack.pop();
+  isPlaying = true;
+  renderAll();
+}
+
+function togglePlayPause() {
+  if (!currentSong) {
+    playNextSong();
+    return;
+  }
+
+  isPlaying = !isPlaying;
+  renderNowPlaying();
+}
+
+function searchSongs() {
+  const searchTerm = searchInput.value.toLowerCase().trim();
+
+  visibleSongs = songs.filter((song) => {
+    return song.title.toLowerCase().includes(searchTerm) ||
+      song.artist.toLowerCase().includes(searchTerm) ||
+      song.mood.toLowerCase().includes(searchTerm);
+  });
+
+  sortSongs();
+}
+
+function sortSongs() {
+  const sortBy = sortSelect.value;
+
+  if (sortBy === "default") {
+    visibleSongs = visibleSongs
+      .map((song) => songs.find((original) => original.id === song.id))
+      .filter(Boolean);
+  }
+
+  if (sortBy === "title") {
+    visibleSongs.sort((a, b) => a.title.localeCompare(b.title));
+  }
+
+  if (sortBy === "artist") {
+    visibleSongs.sort((a, b) => a.artist.localeCompare(b.artist));
+  }
+
+  if (sortBy === "duration") {
+    visibleSongs.sort((a, b) => a.duration - b.duration);
+  }
+
+  renderSongs();
+}
+
+function shufflePlaylist() {
+  const shuffled = [...visibleSongs];
+
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const randomIndex = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[i]];
+  }
+
+  visibleSongs = shuffled;
+  renderSongs();
+}
+
+searchInput.addEventListener("input", searchSongs);
+sortSelect.addEventListener("change", searchSongs);
+document.getElementById("shuffleBtn").addEventListener("click", shufflePlaylist);
+document.getElementById("nextBtn").addEventListener("click", playNextSong);
+document.getElementById("prevBtn").addEventListener("click", playPreviousSong);
+document.getElementById("playPauseBtn").addEventListener("click", togglePlayPause);
+
+renderAll();
