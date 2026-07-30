@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BeatStack - Music Player Clone</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <h1>BeatStack</h1>
+      <nav>
+        <button class="nav-item active">Home</button>
+        <button class="nav-item">Search</button>
+        <button class="nav-item">Library</button>
+      </nav>
+      <div class="dsa-note">
+        <strong>DSA used:</strong>
+        <span>Array playlist</span>
+        <span>Queue for upcoming songs</span>
+        <span>Stack for listening history</span>
+        <span>Search, sort, shuffle</span>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Frontend + DSA demo</p>
+          <h2>Your Music Dashboard</h2>
+          <p>Search songs, sort the playlist, manage a play queue, and track listening history.</p>
+        </div>
+        <button id="shuffleBtn">Shuffle Playlist</button>
+      </section>
+
+      <section class="toolbar">
+        <input id="searchInput" type="search" placeholder="Search by title, artist, or mood">
+        <select id="sortSelect">
+          <option value="default">Original order</option>
+          <option value="title">Sort by title</option>
+          <option value="artist">Sort by artist</option>
+          <option value="duration">Sort by duration</option>
+        </select>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <h3>Playlist</h3>
+          <span id="songCount">0 songs</span>
+        </div>
+        <div id="songList" class="song-list"></div>
+      </section>
+    </main>
+
+    <aside class="right-panel">
+      <section class="now-playing">
+        <div id="coverArt" class="cover-art">BS</div>
+        <p class="eyebrow">Now playing</p>
+        <h3 id="currentTitle">Select a song</h3>
+        <p id="currentArtist">Nothing is playing yet</p>
+        <div class="player-controls">
+          <button id="prevBtn">Prev</button>
+          <button id="playPauseBtn">Play</button>
+          <button id="nextBtn">Next</button>
+        </div>
+      </section>
+
+      <section class="panel-card">
+        <div class="section-title">
+          <h3>Queue</h3>
+          <span>FIFO</span>
+        </div>
+        <ol id="queueList" class="mini-list"></ol>
+      </section>
+
+      <section class="panel-card">
+        <div class="section-title">
+          <h3>History</h3>
+          <span>Stack</span>
+        </div>
+        <ol id="historyList" class="mini-list"></ol>
+      </section>
+    </aside>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
